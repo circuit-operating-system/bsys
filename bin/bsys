@@ -105,6 +105,12 @@ if [[ $# -eq 0 ]]; then
         exit 1
     fi
 
+    # Check if REPO is set
+    if [[ "$REPO" == "" ]]; then
+        echo "(X) REPO has no value; have you sourced \`devenv\`?"
+        exit 1
+    fi
+
     # Compile boot stub
     echo ":: Compiling boot stub..."
     mkdir -p "$REPO/obj"
