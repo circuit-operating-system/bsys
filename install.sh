@@ -35,8 +35,9 @@ mkdir /opt/bsys /opt/bsys/bin /opt/bsys/etc
 cp ./bin/bsys /opt/bsys/bin/bsys
 cp ./etc/linker.ld /opt/bsys/etc/linker.ld
 
-# Link bsys to /bin
+# Link bsys to /bin and make executable
 ln -s /opt/bsys/bin/bsys /bin/bsys
+chmod +x /bin/bsys
 
 # Success message
 echo "=> Successful! Use $0 -u to uninstall."
