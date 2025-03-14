@@ -10,7 +10,7 @@ help() {
     echo "Options:"
     echo "    -h, --help       Shows this help message."
     echo "    -t, --test       Run the OS in QEMU."
-    echo "    -c, --clean      Remove generated $REPO/objects and images."
+    echo "    -c, --clean      Remove generated objects and images."
     echo "    -x, --cross      Build and install a cross-compilation toolchain."
     echo "    --uncross        Uninstall the cross-compilation toolchain."
 
