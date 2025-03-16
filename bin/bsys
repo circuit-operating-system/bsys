@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Exit on command failure
+# Exit on error
 set -e
 
 # Display the help message
@@ -14,133 +14,111 @@ help() {
     echo "    -x, --cross      Build and install a cross-compilation toolchain."
     echo "    --uncross        Uninstall the cross-compilation toolchain."
 
-    exit
+    exit 0
 }
 
 # Clean the repo root of artifacts
 clean() {
     # Check if REPO is set
-    if [[ "$REPO" == "" ]]; then
+    if [ -z "$REPO" ]; then
         echo "(X) REPO has no value; have you sourced \`devenv\`?"
         exit 1
     fi
 
-    # Nike slogan
     rm -rf "$REPO/bin" "$REPO/obj" "$REPO/tmp"
-    exit
+    exit 0
 }
 
 test() {
-    # Check if REPO is set
-    if [[ "$REPO" == "" ]]; then
+    if [ -z "$REPO" ]; then
         echo "(X) REPO has no value; have you sourced \`devenv\`?"
         exit 1
     fi
 
-    # Invoke QEMU
     qemu-system-i386 -kernel "$REPO/bin/circuitos.bin"
-    exit
+    exit 0
 }
 
-# Generate a cross-compilation toolchain
 cross() {
-    # Check if REPO is set
-    if [[ "$REPO" == "" ]]; then
+    if [ -z "$REPO" ]; then
         echo "(X) REPO has no value; have you sourced \`devenv\`?"
         exit 1
     fi
 
-    # Check if Binutils and GCC archives are here
-    if [[ ! -d "$REPO/binutils.cross" ]]; then
+    if [ ! -d "$REPO/binutils.cross" ]; then
         echo "(X) binutils.cross not found in repo clone root. (Is \$REPO set properly?)" >&2
         exit 1
     fi
 
-    if [[ ! -d "$REPO/gcc.cross" ]]; then
+    if [ ! -d "$REPO/gcc.cross" ]; then
         echo "(X) gcc.cross not found in repo clone root. (Is \$REPO set properly?)" >&2
         exit 1
     fi
 
-    # Set the proper target
     TARGET="i686-elf"
+    PREFIX="${PREFIX:-/opt/cross}"
 
-    # If the PREFIX variable isn't set, then set the default
-    if [[ "$PREFIX" == "" ]]; then
-        PREFIX="/opt/cross"
-    fi
-
-    # If the tmp temporal directory exists, remove it
-    if [[ -d "$REPO/tmp" ]]; then
+    if [ -d "$REPO/tmp" ]; then
         rm -rf "$REPO/tmp"
     fi
 
-    # Create the temporal subdirectories
     mkdir -p "$REPO/tmp/binutils" "$REPO/tmp/gcc"
 
-    # Build and install Binutils
     cd "$REPO/tmp/binutils"
     "$REPO/binutils.cross/configure" --target="$TARGET" --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
-    make -j$(nproc)
+    make -j$(getconf _NPROCESSORS_ONLN)
     make install
 
-    # Build and install GCC
     cd "$REPO/tmp/gcc"
     "$REPO/gcc.cross/configure" --target="$TARGET" --prefix="$PREFIX" --disable-nls --enable-languages=c,c++ --without-headers --disable-hosted-libstdcxx
-    make all-gcc -j$(nproc)
-    make all-target-libgcc -j$(nproc)
-    make all-target-libstdc++-v3 -j$(nproc)
+    make all-gcc -j$(getconf _NPROCESSORS_ONLN)
+    make all-target-libgcc -j$(getconf _NPROCESSORS_ONLN)
+    make all-target-libstdc++-v3 -j$(getconf _NPROCESSORS_ONLN)
     make install-gcc
     make install-target-libgcc
     make install-target-libstdc++-v3
 
-    # Tell the user to re-set their PATH
     echo "=> Set your PATH to $PREFIX/bin:\$PATH to use the cross-compilation toolchain."
 }
 
-# If no arguments are passed, just build the OS (default behavior)
-if [[ $# -eq 0 ]]; then
-    # Verify cross-compiler toolchain is built & installed
-    if ! command -v i686-elf-as > /dev/null 2>&1; then
+if [ "$#" -eq 0 ]; then
+    if ! command -v i686-elf-as >/dev/null 2>&1; then
         echo "(X) Cross-compiler not found in PATH." >&2
         exit 1
     fi
 
-    # Check if REPO is set
-    if [[ "$REPO" == "" ]]; then
+    if [ -z "$REPO" ]; then
         echo "(X) REPO has no value; have you sourced \`devenv\`?"
         exit 1
     fi
 
-    # Compile boot stub
     echo ":: Compiling boot stub..."
     mkdir -p "$REPO/obj"
     i686-elf-as "$REPO/src/boot.asm" -o "$REPO/obj/boot.o"
 
-    # Compile Wireframe kernel
     echo ":: Compiling Wireframe kernel..."
     i686-elf-gcc -c "$REPO/src/kernel.c" -o "$REPO/obj/kernel.o" -std=gnu99 -ffreestanding -O2 -Wall -Wextra
 
-    # Link the OS
     echo ":: Linking OS..."
     mkdir -p bin
-    i686-elf-gcc -T /opt/bsys/etc/linker.ld -o bin/circuitos.bin -ffreestanding -O2 -nostdlib $REPO/obj/boot.o $REPO/obj/kernel.o -lgcc
-    exit
+    i686-elf-gcc -T /opt/bsys/etc/linker.ld -o bin/circuitos.bin -ffreestanding -O2 -nostdlib "$REPO/obj/boot.o" "$REPO/obj/kernel.o" -lgcc
+    exit 0
 fi
 
-# Parse arguments and handle them
 case "$1" in
-    "-c" | "--clean")
+    -c | --clean)
         clean
         ;;
-    "-h" | "--help")
+    -h | --help)
         help
         ;;
-    "-t" | "--test")
+    -t | --test)
         test
         ;;
-    "-x" | "--cross")
+    -x | --cross)
         cross
         ;;
     *)
         help
+        ;;
 esac
